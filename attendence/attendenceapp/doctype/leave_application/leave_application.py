@@ -1,6 +1,6 @@
 import frappe
 from frappe.model.document import Document
-from frappe.utils import flt, getdate
+from frappe.utils import flt, getdate, add_days
 
 
 class LeaveApplication(Document):
@@ -25,6 +25,39 @@ class LeaveApplication(Document):
                 f"Insufficient leave balance for Leave Type {self.leave_type}"
             )
 
+    def on_submit(self):
+        if self.status == "Approved":
+            self.create_leave_attendance()
+            self.reduce_leave_balance()
+
+    def reduce_leave_balance(self):
+        """
+        Do NOT reduce Leaves Allocation.new_leave_allocated.
+        It should always represent TOTAL allocated leaves.
+        Balance is handled only in get_leave_balance().
+        """
+        return
+
+    def create_leave_attendance(self):
+        current_date = self.from_date
+
+        while current_date <= self.to_date:
+            existing = frappe.db.exists(
+                "Attendence",
+                {"employee": self.employee, "attendence_date": current_date}
+            )
+
+            if not existing:
+                att = frappe.new_doc("Attendence")
+                att.employee = self.employee
+                att.attendence_date = current_date
+                att.status = "On Leave"
+                att.leave_type = self.leave_type
+                att.insert(ignore_permissions=True)
+                att.submit()
+
+            current_date = add_days(current_date, 1)
+
 
 @frappe.whitelist()
 def get_leave_balance(employee):
@@ -37,7 +70,7 @@ def get_leave_balance(employee):
     data = {}
     today = getdate()
 
- 
+    # allocations (total quota)
     for a in allocations:
         lt = a.get("leave_type")
         alloc = flt(a.get("new_leave_allocated") or 0)
@@ -49,48 +82,54 @@ def get_leave_balance(employee):
 
         data[lt] = {
             "total_leaves": alloc,
+            "expired_leaves": expired,
             "leaves_taken": 0,
             "leaves_pending_approval": 0,
             "remaining_leaves": alloc - expired,
         }
 
-    
+    # include Draft + Submitted, exclude Rejected
     leaves = frappe.get_all(
         "Leave Application",
         filters={
             "employee": employee,
-            "docstatus": ["<", 2],       
-            "status": ["!=", "Rejected"]  
+            "docstatus": ["<", 2],
+            "status": ["!=", "Rejected"]
         },
-        fields=["leave_type", "total_leave_days", "status"]
+        fields=["leave_type", "total_leave_days", "status", "docstatus"]
     )
 
-   
     for l in leaves:
         lt = l.get("leave_type")
         days = flt(l.get("total_leave_days") or 0)
         status = l.get("status")
+        docstatus = l.get("docstatus")
 
         if lt not in data:
             data[lt] = {
                 "total_leaves": 0,
+                "expired_leaves": 0,
                 "leaves_taken": 0,
                 "leaves_pending_approval": 0,
                 "remaining_leaves": 0,
             }
 
-        if status == "Approved":
+        # ✅ ONLY count as taken when Approved + Submitted
+        if status == "Approved" and docstatus == 1:
             data[lt]["leaves_taken"] += days
-        else:  
+
+        # ✅ ONLY count as pending when NOT Approved (Draft or Submitted)
+        elif status != "Approved":
             data[lt]["leaves_pending_approval"] += days
 
-  
+        # ✅ Approved + Draft → do nothing (neither taken nor pending)
+
+    # final remaining calculation
     for lt in data:
         total = data[lt]["total_leaves"]
+        expired = data[lt]["expired_leaves"]
         used = data[lt]["leaves_taken"]
-        pending = data[lt]["leaves_pending_approval"]
-        
 
-        data[lt]["remaining_leaves"] = total - used - pending - expired
+        data[lt]["remaining_leaves"] = max(0, total - used - expired)
 
     return data
