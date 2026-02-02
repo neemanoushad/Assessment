@@ -148,22 +148,21 @@ app_license = "mit"
 # Scheduled Tasks
 # ---------------
 
+scheduler_events = {
+    "daily": [
+        "attendence.attendenceapp.attendence_util.process_auto_attendance"
+    ]
+}
+
 # scheduler_events = {
-# 	"all": [
-# 		"attendence.tasks.all"
-# 	],
-# 	"daily": [
-# 		"attendence.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"attendence.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"attendence.tasks.weekly"
-# 	],
-# 	"monthly": [
-# 		"attendence.tasks.monthly"
-# 	],
+#     # run every 5 minutes to process recent checkins via scheduler only
+#     "cron": {
+#         "* * * * *": [
+#             "attendence.attendenceapp.attendence_util.process_auto_attendance"
+#         ]
+#     },
+#     # keep daily backfill as well
+ 
 # }
 
 # Testing
