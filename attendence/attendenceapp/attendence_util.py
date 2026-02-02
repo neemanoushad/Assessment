@@ -11,34 +11,39 @@ def process_auto_attendance():
     )
 
     for emp in employees:
-        # skip if no shift assigned
         if not emp.shift_type:
             continue
 
-        # get shift doc (your custom Shift Type)
         shift = frappe.get_doc("shift type", emp.shift_type)
 
         shift_start = get_datetime(f"{today} {shift.shift_start_time}")
         shift_end = get_datetime(f"{today} {shift.shift_end_time}")
 
-        # check checkins within shift time
         checkins = frappe.get_all(
             "Employee Checkin",
             filters={
                 "employee": emp.name,
                 "time": ["between", [shift_start, shift_end]]
             },
-            fields=["employee", "time"]
+            fields=["log_type", "time"],
+            order_by="time asc"
         )
 
+        # ❌ no logs
         if not checkins:
             create_attendance(emp.name, today, "Absent")
-        else:
+            continue
+
+        last_log = checkins[-1]
+
+        # ✅ ONLY if last log is OUT
+        if last_log.log_type == "OUT":
             create_attendance(emp.name, today, "Present")
+        else:
+            create_attendance(emp.name, today, "Absent")
 
 
 def create_attendance(employee, date, status):
-    # ✅ prevent duplicate attendance
     if frappe.db.exists("Attendence", {
         "employee": employee,
         "attendence_date": date
