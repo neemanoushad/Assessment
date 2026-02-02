@@ -37,7 +37,7 @@ def get_leave_balance(employee):
     data = {}
     today = getdate()
 
-    # Build allocation data
+ 
     for a in allocations:
         lt = a.get("leave_type")
         alloc = flt(a.get("new_leave_allocated") or 0)
@@ -49,24 +49,23 @@ def get_leave_balance(employee):
 
         data[lt] = {
             "total_leaves": alloc,
-            "expired_leaves": expired,
             "leaves_taken": 0,
             "leaves_pending_approval": 0,
             "remaining_leaves": alloc - expired,
         }
 
-    # ✅ Fetch ALL non-rejected leave applications (approved + pending)
+    
     leaves = frappe.get_all(
         "Leave Application",
         filters={
             "employee": employee,
-            "docstatus": ["<", 2],        # draft + submitted
-            "status": ["!=", "Rejected"]  # ignore rejected
+            "docstatus": ["<", 2],       
+            "status": ["!=", "Rejected"]  
         },
         fields=["leave_type", "total_leave_days", "status"]
     )
 
-    # Process leaves
+   
     for l in leaves:
         lt = l.get("leave_type")
         days = flt(l.get("total_leave_days") or 0)
@@ -75,7 +74,6 @@ def get_leave_balance(employee):
         if lt not in data:
             data[lt] = {
                 "total_leaves": 0,
-                "expired_leaves": 0,
                 "leaves_taken": 0,
                 "leaves_pending_approval": 0,
                 "remaining_leaves": 0,
@@ -83,15 +81,15 @@ def get_leave_balance(employee):
 
         if status == "Approved":
             data[lt]["leaves_taken"] += days
-        else:  # Open / Pending Approval
+        else:  
             data[lt]["leaves_pending_approval"] += days
 
-    # Final remaining calculation
+  
     for lt in data:
         total = data[lt]["total_leaves"]
         used = data[lt]["leaves_taken"]
         pending = data[lt]["leaves_pending_approval"]
-        expired = data[lt]["expired_leaves"]
+        
 
         data[lt]["remaining_leaves"] = total - used - pending - expired
 
