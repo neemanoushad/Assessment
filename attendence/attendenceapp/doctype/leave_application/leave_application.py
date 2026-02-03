@@ -114,15 +114,15 @@ def get_leave_balance(employee):
                 "remaining_leaves": 0,
             }
 
-        # ONLY count as taken when Approved + Submitted
+        # ✅ ONLY count as taken when Approved + Submitted
         if status == "Approved" and docstatus == 1:
             data[lt]["leaves_taken"] += days
 
-        #  ONLY count as pending when NOT Approved (Draft or Submitted)
+        # ✅ ONLY count as pending when NOT Approved (Draft or Submitted)
         elif status != "Approved":
             data[lt]["leaves_pending_approval"] += days
 
-        #  Approved + Draft → do nothing (neither taken nor pending)
+        # ✅ Approved + Draft → do nothing (neither taken nor pending)
 
     # final remaining calculation
     for lt in data:
