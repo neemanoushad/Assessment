@@ -1,5 +1,5 @@
 import frappe
-from frappe.utils import getdate, get_datetime
+from frappe.utils import getdate, get_datetime, add_to_date
 
 def process_auto_attendance():
     today = getdate()
@@ -19,6 +19,9 @@ def process_auto_attendance():
         shift_start = get_datetime(f"{today} {shift.shift_start_time}")
         shift_end = get_datetime(f"{today} {shift.shift_end_time}")
 
+        # 🔽 10 minutes grace
+        late_time = add_to_date(shift_start, minutes=10)
+
         checkins = frappe.get_all(
             "Employee Checkin",
             filters={
@@ -34,10 +37,16 @@ def process_auto_attendance():
             create_attendance(emp.name, today, "Absent")
             continue
 
+        first_log = checkins[0]
         last_log = checkins[-1]
 
-        # ✅ ONLY if last log is OUT
-        if last_log.log_type == "OUT":
+        # 🔽 ONLY ADDITION: late login → Half Day
+        if first_log.log_type == "IN" and first_log.time > late_time:
+            create_attendance(emp.name, today, "Half Day")
+            continue
+
+        # ✅ existing logic (slightly extended with logout time check)
+        if last_log.log_type == "OUT" and last_log.time >= shift_end:
             create_attendance(emp.name, today, "Present")
         else:
             create_attendance(emp.name, today, "Absent")

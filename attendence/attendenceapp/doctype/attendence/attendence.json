@@ -37,7 +37,7 @@
    "fieldname": "status",
    "fieldtype": "Select",
    "label": "Status",
-   "options": "\nPresent\nAbsent\nOn Leave"
+   "options": "\nPresent\nAbsent\nOn Leave\nHalf Day"
   },
   {
    "fieldname": "column_break_rhlg",
@@ -69,7 +69,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-02-02 19:39:00.918351",
+ "modified": "2026-02-03 09:18:00.306965",
  "modified_by": "Administrator",
  "module": "attendenceapp",
  "name": "Attendence",
